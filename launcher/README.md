@@ -1,19 +1,25 @@
-# gakumas-launcher 启动器
+# gakumas-launcher
 
-《学园偶像大师》（Gakumas）专用命令行启动器（Rust），支持 x64 Windows 与 Linux（通过 Wine 启动）。
+A dedicated Rust command-line launcher for Gakuen Idolmaster (Gakumas). Upstream supports x64 Windows and Linux (through Wine). **This fork focuses on native macOS launcher support with CrossOver running the Windows game.**
 
-## 架构特性
+## macOS and CrossOver
 
-- **内置纯 Rust 静态脱壳引擎（`src/decrypt.rs`）**：无需安装 Python 或 `pycryptodome`，直接根据版本 Profile（`key.bin`、`sbox.bin`、`pass3.bin`、`records.bin`）在内存中完成 `GameAssembly.dll` 解密、Il2Cpp 注册结构对齐与 `.idata`/CRT 入口重建。
-- **Windows 单二进制自举（`src/host.rs`）**：Windows 下 `gakumas-launcher.exe` 自身内置无壳 Unity 启动宿主逻辑；被复制为游戏目录下的 `gakumas.exe` 启动时会自动进入 Unity 宿主模式（加载 `GameAssembly.dll` 与 `UnityPlayer.dll!UnityMain`），无需额外可执行文件。
-- **Linux / Wine 自动获取与缓存宿主 `gakumas.exe`**：按 `--host` → 启动器同级目录 → `$HOME/.config/gakumas/gakumas.exe` 顺序查找；若本地不存在，自动从远程 Profile 仓库对应的 GitHub Release（或 `host_url`）下载并缓存至 `$HOME/.config/gakumas/gakumas.exe`。
+The CLI has been built natively for Apple Silicon and used to launch the game locally through CrossOver. Integration is still being developed. Configure `wine` to point to a wrapper that selects CrossOver's underlying Wine loader and matching wineserver, and `wine_prefix` to the game prefix. CrossOver's `bin/wine` management script expects a named bottle; setting `WINEPREFIX` alone does not select a Steam-managed prefix through that script. Use the same runtime for all processes sharing a prefix to avoid Wine client/server version mismatches.
 
-## 数据目录与配置文件（`$HOME/.config/gakumas`）
+The launcher downloads game files, decryption profiles, and the Windows host as needed. It does not install CrossOver or set up the prefix's runtime dependencies. The existing release workflow builds Windows and Linux binaries.
 
-启动器使用 `$HOME/.config/gakumas` 作为数据与配置目录：
+## Architecture
 
-- **`$HOME/.config/gakumas/session.json`**：保存 DMM 登录凭证（`access_token`、`expires_in_seconds`、`stored_at`）。
-- **`$HOME/.config/gakumas/config.json`**：可选配置文件，用于设置默认游戏目录、远程 Profile 仓库地址等参数（命令行参数优先级高于 `config.json`）：
+- **Built-in pure Rust static unpacking engine (`src/decrypt.rs`)**: No Python or `pycryptodome` installation is needed. Using a version profile (`key.bin`, `sbox.bin`, `pass3.bin`, `records.bin`), the engine decrypts `GameAssembly.dll`, aligns Il2Cpp registration structures, and reconstructs `.idata` and the CRT entry point in memory.
+- **Single-binary Windows bootstrap (`src/host.rs`)**: On Windows, `gakumas-launcher.exe` includes the unpacked Unity host logic. When copied into the game directory as `gakumas.exe`, it automatically enters Unity host mode, loading `GameAssembly.dll` and calling `UnityPlayer.dll!UnityMain`. No separate host executable is required on Windows.
+- **Automatic Windows host download and caching for Wine**: The launcher searches for `gakumas.exe` using `--host`, local candidates such as the launcher's directory, and `$HOME/.config/gakumas/gakumas.exe`. If no local host is available, it downloads one from a GitHub Release associated with the remote profile repository, or from `host_url`, and caches it at `$HOME/.config/gakumas/gakumas.exe`.
+
+## Data directory and configuration (`$HOME/.config/gakumas`)
+
+The launcher stores its data and configuration in `$HOME/.config/gakumas`:
+
+- **`$HOME/.config/gakumas/session.json`**: Stores DMM login credentials (`access_token`, `expires_in_seconds`, `stored_at`).
+- **`$HOME/.config/gakumas/config.json`**: Optional configuration for the default game directory, remote profile repository, and other options. Command-line arguments take precedence over `config.json`.
 
 ```json
 {
@@ -27,20 +33,21 @@
 }
 ```
 
-（其中 `dir` 兼容别名 `game_dir`，`profile_base_url` 兼容别名 `profile_repo` / `profile_url`。）
+`dir` also accepts the alias `game_dir`. `profile_base_url` also accepts `profile_repo` and `profile_url`. The example uses upstream's profile and host download URLs. For CrossOver, replace `wine` with the absolute path to your Wine wrapper and `wine_prefix` with your prefix path.
 
-## 用法
+## Usage
 
-### 1. 一键全流程启动（推荐）
+### 1. Automatic launch (recommended)
 
-配置好 `$HOME/.config/gakumas/config.json` 后直接运行 `gakumas-launcher`（无需任何参数）：
+After configuring `$HOME/.config/gakumas/config.json`, run `gakumas-launcher` without arguments:
 
 ```sh
-# 自动检测登录状态（未登录则引导登录） -> 下载/校验游戏文件 -> 匹配 Profile 脱壳并部署宿主 -> 启动游戏
+# Check the login session (prompt for login if needed), download and verify game
+# files, unpack using a matching profile, deploy the host, and launch the game.
 gakumas-launcher
 ```
 
-### 2. 分步子命令（可选）
+### 2. Individual commands (optional)
 
 ```sh
 gakumas-launcher login
