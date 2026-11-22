@@ -25,7 +25,7 @@ jobs:
             extension: ''
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -36,14 +36,14 @@ jobs:
         run: |
           cargo test --locked --manifest-path launcher/Cargo.toml --target ${{ matrix.target }}
           launcher/target/${{ matrix.target }}/release/gakumas-launcher --help
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: gakumas-launcher-${{ matrix.target }}
           path: launcher/target/${{ matrix.target }}/release/gakumas-launcher${{ matrix.extension }}
       - name: Build Windows native host (gakumas.exe)
         if: runner.os == 'Windows'
         run: cargo build --release --locked --manifest-path launcher/Cargo.toml --bin gakumas --target ${{ matrix.target }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: runner.os == 'Windows'
         with:
           name: gakumas-host-windows-x64
@@ -54,7 +54,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
       - name: Package release assets
@@ -75,7 +75,7 @@ jobs:
           cp artifacts/gakumas-host-windows-x64/gakumas.exe dist/macos/
           tar -C dist/macos -czf release/gakumas-launcher-aarch64-apple-darwin.tar.gz .
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           files: |
