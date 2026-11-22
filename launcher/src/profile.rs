@@ -11,7 +11,7 @@ use url::Url;
 use crate::client::DynError;
 
 pub const DEFAULT_PROFILE_BASE_URL: &str =
-    "https://raw.githubusercontent.com/huochai67/gakumas-launcher/main";
+    "https://raw.githubusercontent.com/tsuki-tsuki/gakumas-launcher-mac/main";
 
 const FILES: [&str; 5] = ["manifest.json", "key.bin", "sbox.bin", "pass3.bin", "records.bin"];
 

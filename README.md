@@ -2,13 +2,13 @@
 
 This repository provides an offline `GameAssembly.dll` decryption tool based on published version profiles, the profiles for each supported version, and a dedicated Rust launcher.
 
-## About this fork
+## Platform support
 
-This fork of [huochai67/gakumas-launcher](https://github.com/huochai67/gakumas-launcher) focuses on running Gakuen Idolmaster (Gakumas) on **macOS with CrossOver**. The launcher runs natively on macOS, while the Windows game runs through CrossOver's Wine runtime.
+This project supports Windows and Linux, with a focus on running Gakuen Idolmaster (Gakumas) on **macOS with CrossOver**. The Windows CLI runs inside CrossOver, and a native macOS CLI build can also launch the Windows game through Wine.
 
 For Steam with NotProton, use the Windows CLI executable as the launch executable. It runs inside the selected CrossOver prefix and launches the game in the same Wine session, without an external Wine wrapper. The launcher accepts NotProton's working directory and macOS host paths. See the [Steam setup instructions](launcher/README.md#steam-and-notproton-on-macos).
 
-The native Apple Silicon CLI build and game launch have also been tested locally with CrossOver; standalone native launches still need a Wine wrapper. Upstream provides Windows and Linux support, and the existing release workflow builds those platforms.
+The native Apple Silicon CLI build and game launch have also been tested locally with CrossOver; standalone native launches still need a Wine wrapper. The release workflow builds Windows and Linux binaries.
 
 ## Repository layout
 

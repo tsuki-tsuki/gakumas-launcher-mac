@@ -1,6 +1,6 @@
 # gakumas-launcher
 
-A dedicated Rust command-line launcher for Gakuen Idolmaster (Gakumas). Upstream supports x64 Windows and Linux (through Wine). **This fork focuses on native macOS launcher support with CrossOver running the Windows game.**
+A dedicated Rust command-line launcher for Gakuen Idolmaster (Gakumas). Supports x64 Windows and Linux (through Wine), with **macOS support through CrossOver/NotProton** and a native macOS CLI build.
 
 ## macOS and CrossOver
 
@@ -18,7 +18,7 @@ Explicit command-line options override `config.json`. With neither specified, th
 --dir "/Volumes/Games/Gakumas/game" --host "/Volumes/Games/Gakumas/gakumas.exe"
 ```
 
-Profiles are required for decryption, but the upstream profile URL is already the default; an explicit `--profile-base-url` is unnecessary. `--host-url` is only needed to override host downloads. BepInEx is optional and is not required to launch the base game.
+Profiles are required for decryption, but this repository's profile URL is already the default; an explicit `--profile-base-url` is unnecessary. `--host-url` is only needed to override host downloads. BepInEx is optional and is not required to launch the base game.
 
 First-time login asks for a callback URL or authorization code. Complete it once from an interactive terminal before launching through Steam; Steam does not provide terminal input. Saved login credentials can then be reused, including those from the native CLI when the same host home directory is inherited.
 
@@ -44,16 +44,16 @@ The launcher stores its data and configuration in `$HOME/.config/gakumas`:
 ```json
 {
   "dir": "/path/to/game",
-  "profile_base_url": "https://raw.githubusercontent.com/huochai67/gakumas-launcher/main",
+  "profile_base_url": "https://raw.githubusercontent.com/tsuki-tsuki/gakumas-launcher-mac/main",
   "bepinex": "/path/to/BepInEx-Unity.IL2CPP-win-x64.zip",
   "host": "/path/to/gakumas.exe",
-  "host_url": "https://github.com/huochai67/gakumas-launcher/releases/latest/download/gakumas.exe",
+  "host_url": "https://github.com/tsuki-tsuki/gakumas-launcher-mac/releases/latest/download/gakumas.exe",
   "wine": "wine",
   "wine_prefix": "/path/to/wineprefix"
 }
 ```
 
-`dir` also accepts the alias `game_dir`. `profile_base_url` also accepts `profile_repo` and `profile_url`. The example uses upstream's profile and host download URLs. For CrossOver, replace `wine` with the absolute path to your Wine wrapper and `wine_prefix` with your prefix path.
+`dir` also accepts the alias `game_dir`. `profile_base_url` also accepts `profile_repo` and `profile_url`. The example uses this repository's public profile and host download URLs. For CrossOver, replace `wine` with the absolute path to your Wine wrapper and `wine_prefix` with your prefix path.
 
 ## Usage
 
