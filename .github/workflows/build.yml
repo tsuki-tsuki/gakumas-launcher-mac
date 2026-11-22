@@ -20,6 +20,9 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             extension: '.exe'
+          - os: macos-15
+            target: aarch64-apple-darwin
+            extension: ''
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +31,11 @@ jobs:
           targets: ${{ matrix.target }}
       - name: Build gakumas-launcher
         run: cargo build --release --locked --manifest-path launcher/Cargo.toml --bin gakumas-launcher --target ${{ matrix.target }}
+      - name: Test native macOS launcher
+        if: runner.os == 'macOS'
+        run: |
+          cargo test --locked --manifest-path launcher/Cargo.toml --target ${{ matrix.target }}
+          launcher/target/${{ matrix.target }}/release/gakumas-launcher --help
       - uses: actions/upload-artifact@v4
         with:
           name: gakumas-launcher-${{ matrix.target }}
@@ -51,7 +59,7 @@ jobs:
           path: artifacts
       - name: Package release assets
         run: |
-          mkdir -p dist/windows dist/linux release
+          mkdir -p dist/windows dist/linux dist/macos release
           cp artifacts/gakumas-launcher-x86_64-pc-windows-msvc/gakumas-launcher.exe dist/windows/
           cp artifacts/gakumas-host-windows-x64/gakumas.exe dist/windows/
           cp artifacts/gakumas-host-windows-x64/gakumas.exe release/gakumas.exe
@@ -61,6 +69,11 @@ jobs:
           chmod +x dist/linux/gakumas-launcher
           cp artifacts/gakumas-host-windows-x64/gakumas.exe dist/linux/
           tar -C dist/linux -czf release/gakumas-launcher-x86_64-unknown-linux-gnu.tar.gz .
+
+          cp artifacts/gakumas-launcher-aarch64-apple-darwin/gakumas-launcher dist/macos/
+          chmod +x dist/macos/gakumas-launcher
+          cp artifacts/gakumas-host-windows-x64/gakumas.exe dist/macos/
+          tar -C dist/macos -czf release/gakumas-launcher-aarch64-apple-darwin.tar.gz .
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -68,4 +81,5 @@ jobs:
           files: |
             release/gakumas-launcher-x86_64-pc-windows-msvc.zip
             release/gakumas-launcher-x86_64-unknown-linux-gnu.tar.gz
+            release/gakumas-launcher-aarch64-apple-darwin.tar.gz
             release/gakumas.exe

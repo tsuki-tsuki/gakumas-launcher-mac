@@ -24,9 +24,55 @@ First-time login asks for a callback URL or authorization code. Complete it once
 
 ### Standalone native CLI
 
-The CLI has also been built natively for Apple Silicon and used to launch the game locally through CrossOver. Configure `wine` to point to a wrapper that selects CrossOver's underlying Wine loader and matching wineserver, and `wine_prefix` to the game prefix. CrossOver's `bin/wine` management script expects a named bottle; setting `WINEPREFIX` alone does not select a Steam-managed prefix through that script. Use the same runtime for all processes sharing a prefix to avoid Wine client/server version mismatches.
+Download `gakumas-launcher-aarch64-apple-darwin.tar.gz` for Apple Silicon and extract it into your launcher working folder. Like the Linux archive, it contains the native `gakumas-launcher` and the Windows `gakumas.exe` host. Keep them together so the launcher can find the host automatically. If a local host is unavailable, it can be downloaded and cached automatically, or downloaded separately from the release assets. This package does not include an Intel macOS binary. Rust and Xcode are only needed to build from source, not to run the downloaded CLI.
 
-The launcher downloads game files, decryption profiles, and the Windows host as needed. It does not install CrossOver or set up the prefix's runtime dependencies. The existing release workflow builds Windows and Linux binaries.
+The native launcher needs:
+
+- A macOS Wine/CrossOver runtime capable of running the Windows game.
+- A prepared 64-bit prefix with the game's Windows runtime dependencies.
+- A Wine wrapper or equivalent environment that selects the actual Wine loader and matching wineserver.
+- An interactive terminal for first-time DMM login. The native macOS CLI opens the login URL in your default browser using `/usr/bin/open`; paste the callback URL or authorization code into the terminal. If browser launch fails, you can open the printed URL manually.
+
+CrossOver's `bin/wine` management script expects a named bottle; setting `WINEPREFIX` alone does not select a Steam-managed prefix through that script. For an **x86_64/Rosetta CrossOver runtime**, save a wrapper such as the following as `wine-crossover.sh`. Set `CX_ROOT` to the CrossOver installation you want to use:
+
+```sh
+#!/bin/sh
+export CX_ROOT="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver"
+export WINELOADER="$CX_ROOT/lib/wine/x86_64-unix/wine"
+export WINESERVER="$CX_ROOT/bin/wineserver"
+if [ -f "$CX_ROOT/lib64/apple_gptk/external/libd3dshared.dylib" ]; then
+    export CX_APPLEGPTK_LIBD3DSHARED_PATH="$CX_ROOT/lib64/apple_gptk/external/libd3dshared.dylib"
+fi
+exec "$WINELOADER" "$@"
+```
+
+This example is for the Rosetta runtime layout tested with CrossOver 26.3/FineWine. Other runtime layouts, including ARM/FEX, need their own matching loader and wineserver paths. Do not mix versions or switch runtimes while another process is using the prefix.
+
+Make the wrapper executable, then run the native CLI from its extracted folder with explicit options:
+
+```sh
+chmod +x /path/to/wine-crossover.sh
+./gakumas-launcher \
+  --dir "/path/to/launcher/game" \
+  --wine "/path/to/wine-crossover.sh" \
+  --wine-prefix "/path/to/prefix"
+```
+
+For a NotProton prefix, `--wine-prefix` must point to `steamapps/compatdata/<AppID>/pfx`, not its parent directory. This standalone command does not obtain a runtime from Steam automatically; use the Windows CLI with NotProton for that integration.
+
+Alternatively, store the options in `$HOME/.config/gakumas/config.json`:
+
+```json
+{
+  "dir": "/path/to/launcher/game",
+  "wine": "/path/to/wine-crossover.sh",
+  "wine_prefix": "/path/to/prefix"
+}
+```
+
+Then run `./gakumas-launcher`. Command-line arguments override the saved options. With no game directory configured, `game/` is relative to the working directory. Leave `--host` unset to allow automatic host discovery and download; use it only to select an existing host file. No explicit profile or host download URL is needed for the default repository. BepInEx remains optional.
+
+The launcher downloads game files, decryption profiles, and a host if needed; it does not install CrossOver or prepare prefix dependencies. Tag releases publish Windows, Linux, and Apple Silicon macOS binaries. All three archives bundle the Windows host. The host is also published as a standalone release asset; see [Releases](../README.md#releases).
 
 ## Architecture
 
