@@ -10,10 +10,13 @@ use crate::{
 };
 
 pub fn config_dir() -> Result<PathBuf, DynError> {
-    let home = std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .ok_or("HOME is not set")?;
-    let path = PathBuf::from(home).join(".config").join("gakumas");
+    let home = crate::environment::config_home(
+        std::env::var_os("HOME"),
+        std::env::var_os("USERPROFILE"),
+        cfg!(windows),
+    )
+    .ok_or("HOME is not set")?;
+    let path = home.join(".config").join("gakumas");
     fs::create_dir_all(&path)?;
     #[cfg(unix)]
     {
@@ -65,7 +68,9 @@ impl TokenStore {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let _ = temp.as_file().set_permissions(fs::Permissions::from_mode(0o600));
+            let _ = temp
+                .as_file()
+                .set_permissions(fs::Permissions::from_mode(0o600));
         }
         temp.write_all(&payload)?;
         temp.persist(&self.path)?;
@@ -81,7 +86,6 @@ impl TokenStore {
     }
 }
 
-#[cfg(not(windows))]
 pub fn local_identity_seed() -> Result<Vec<u8>, DynError> {
     let path = config_dir()?.join("identity.bin");
     if let Ok(bytes) = fs::read(&path) {

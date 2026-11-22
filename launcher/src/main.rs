@@ -1,6 +1,7 @@
 mod client;
 mod decrypt;
 mod download;
+mod environment;
 mod hardware;
 mod host;
 mod models;
@@ -46,6 +47,21 @@ struct Cli {
     command: Option<Commands>,
 }
 
+impl Cli {
+    fn resolve_paths(&mut self, config: &models::AppConfig) -> (PathBuf, Option<PathBuf>) {
+        let game_dir = self
+            .dir
+            .take()
+            .or_else(|| config.dir.clone())
+            .unwrap_or_else(|| PathBuf::from("game"));
+        let bepinex = self.bepinex.take().or_else(|| config.bepinex.clone());
+        let path = |p| environment::host_path(p, cfg!(windows));
+        self.runtime.host = self.runtime.host.take().map(path);
+        self.runtime.profile = self.runtime.profile.take().map(path);
+        (path(game_dir), bepinex.map(path))
+    }
+}
+
 #[derive(Debug, Subcommand)]
 enum Commands {
     Login {
@@ -81,13 +97,14 @@ fn main() {
 
 async fn run() -> Result<(), DynError> {
     let mut cli = Cli::parse();
+    let workdir = environment::working_dir(
+        std::env::var_os("NOTPROTON_GAME_CWD"),
+        std::env::current_dir()?,
+    );
+    std::env::set_current_dir(environment::host_path(workdir, cfg!(windows)))?;
     let config = token::load_config()?;
     cli.runtime.apply_config(&config);
-    let game_dir = cli
-        .dir
-        .or(config.dir)
-        .unwrap_or_else(|| PathBuf::from("game"));
-    let bepinex = cli.bepinex.or(config.bepinex);
+    let (game_dir, bepinex) = cli.resolve_paths(&config);
 
     if let Some(Commands::Decrypt) = &cli.command {
         fs::create_dir_all(&game_dir)?;
@@ -104,7 +121,11 @@ async fn run() -> Result<(), DynError> {
             login(&mut api, &store, code.as_deref()).await?;
         }
         Some(Commands::Logout) => {
-            let res = if api.token().is_some() { api.logout().await } else { Ok(()) };
+            let res = if api.token().is_some() {
+                api.logout().await
+            } else {
+                Ok(())
+            };
             store.delete()?;
             res?;
             println!("Logged out.");
@@ -139,7 +160,8 @@ async fn run() -> Result<(), DynError> {
             let manifest = install_manifest(&api).await?;
             fs::create_dir_all(&game_dir)?;
             let root = fs::canonicalize(&game_dir)?;
-            download::download_all(api.clone(), manifest, root.clone(), cli.force, cli.jobs).await?;
+            download::download_all(api.clone(), manifest, root.clone(), cli.force, cli.jobs)
+                .await?;
             runtime::prepare(&root, &cli.runtime, bepinex.as_deref(), cli.force).await?;
             launch_game(&api, &store, &root, &cli.runtime, cli.dry_run).await?;
         }
@@ -156,7 +178,8 @@ async fn install_manifest(api: &DmmClient) -> Result<FileManifest, DynError> {
     if info.file_list_url.is_empty() {
         return Err("install API returned no file_list_url".into());
     }
-    api.file_manifest(&info.file_list_url, info.sign.as_deref()).await
+    api.file_manifest(&info.file_list_url, info.sign.as_deref())
+        .await
 }
 
 async fn ensure_logged_in(api: &mut DmmClient, store: &token::TokenStore) -> Result<(), DynError> {
@@ -179,7 +202,9 @@ async fn login(
         Some(code) => code.to_owned(),
         None => {
             let url = api.login_url().await?;
-            eprintln!("Open this DMM login URL in your browser:\n{url}\nPaste callback URL or authorization code:");
+            eprintln!(
+                "Open this DMM login URL in your browser:\n{url}\nPaste callback URL or authorization code:"
+            );
             let mut browser = if cfg!(windows) {
                 let mut cmd = std::process::Command::new("rundll32.exe");
                 cmd.arg("url.dll,FileProtocolHandler");
@@ -214,7 +239,10 @@ fn extract_code(input: &str) -> Result<String, DynError> {
         return Err("no callback URL or authorization code supplied".into());
     }
     if let Ok(url) = url::Url::parse(input) {
-        if let Some((_, code)) = url.query_pairs().find(|(k, v)| k == "code" && !v.is_empty()) {
+        if let Some((_, code)) = url
+            .query_pairs()
+            .find(|(k, v)| k == "code" && !v.is_empty())
+        {
             return Ok(code.into_owned());
         }
     }
@@ -302,4 +330,54 @@ fn timestamp() -> String {
         .unwrap_or_default()
         .as_secs()
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn explicit_paths_override_config_without_losing_runtime_options() {
+        let mut cli = Cli::try_parse_from([
+            "gakumas-launcher",
+            "--dir",
+            "chosen-game",
+            "--host",
+            "chosen-host.exe",
+            "--wine",
+            "chosen-wine",
+            "--wine-prefix",
+            "chosen-prefix",
+            "--bepinex",
+            "chosen-mod.zip",
+        ])
+        .unwrap();
+        let config = models::AppConfig {
+            dir: Some("old-game".into()),
+            host: Some("old-host.exe".into()),
+            wine: Some("old-wine".into()),
+            wine_prefix: Some("old-prefix".into()),
+            bepinex: Some("old-mod.zip".into()),
+            ..Default::default()
+        };
+        cli.runtime.apply_config(&config);
+        let (dir, bepinex) = cli.resolve_paths(&config);
+        assert_eq!(dir, PathBuf::from("chosen-game"));
+        assert_eq!(bepinex, Some(PathBuf::from("chosen-mod.zip")));
+        assert_eq!(cli.runtime.host, Some(PathBuf::from("chosen-host.exe")));
+        assert_eq!(cli.runtime.wine, Some(PathBuf::from("chosen-wine")));
+        assert_eq!(
+            cli.runtime.wine_prefix,
+            Some(PathBuf::from("chosen-prefix"))
+        );
+    }
+
+    #[test]
+    fn configuration_is_optional_and_game_is_relative_to_workdir() {
+        let mut cli = Cli::try_parse_from(["gakumas-launcher"]).unwrap();
+        let config = models::AppConfig::default();
+        cli.runtime.apply_config(&config);
+        assert_eq!(cli.resolve_paths(&config), (PathBuf::from("game"), None));
+        assert!(cli.runtime.profile_base_url.is_some());
+    }
 }

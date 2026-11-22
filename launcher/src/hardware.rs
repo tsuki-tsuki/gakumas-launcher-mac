@@ -34,6 +34,10 @@ pub async fn collect() -> Result<HardwareInfo, DynError> {
     }
     #[cfg(windows)]
     {
+        if std::env::var_os("WINEPREFIX").is_some() || std::env::var_os("CX_ROOT").is_some() {
+            let seed = crate::token::local_identity_seed()?;
+            return Ok(local_identity(&seed));
+        }
         let output = tokio::process::Command::new("powershell.exe")
             .args(["-NoProfile", "-NonInteractive", "-Command", IDENTITY_SCRIPT])
             .output()
@@ -45,7 +49,6 @@ pub async fn collect() -> Result<HardwareInfo, DynError> {
     }
 }
 
-#[cfg(not(windows))]
 fn local_identity(seed: &[u8]) -> HardwareInfo {
     let digest = |label: &[u8]| {
         let mut hash = Sha256::new();
@@ -79,10 +82,15 @@ fn identity(value: &Value) -> Result<HardwareInfo, DynError> {
         .into_iter()
         .find(|s| !s.is_empty())
         .unwrap_or_default();
-    let board = [text("board"), text("bios"), text("product"), text("enclosure")]
-        .into_iter()
-        .find(|s| !s.is_empty())
-        .unwrap_or_default();
+    let board = [
+        text("board"),
+        text("bios"),
+        text("product"),
+        text("enclosure"),
+    ]
+    .into_iter()
+    .find(|s| !s.is_empty())
+    .unwrap_or_default();
 
     if mac.is_empty() || disk.is_empty() || board.is_empty() {
         return Err("unable to read Windows hardware identity".into());

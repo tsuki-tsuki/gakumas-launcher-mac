@@ -6,7 +6,9 @@ This repository provides an offline `GameAssembly.dll` decryption tool based on 
 
 This fork of [huochai67/gakumas-launcher](https://github.com/huochai67/gakumas-launcher) focuses on running Gakuen Idolmaster (Gakumas) on **macOS with CrossOver**. The launcher runs natively on macOS, while the Windows game runs through CrossOver's Wine runtime.
 
-The native Apple Silicon CLI build and game launch have been tested locally with CrossOver. macOS integration is still being developed; CrossOver currently needs a wrapper that selects its underlying Wine loader and matching wineserver for the chosen prefix. Upstream provides Windows and Linux support, and the existing release workflow builds those platforms.
+For Steam with NotProton, use the Windows CLI executable as the launch executable. It runs inside the selected CrossOver prefix and launches the game in the same Wine session, without an external Wine wrapper. The launcher accepts NotProton's working directory and macOS host paths. See the [Steam setup instructions](launcher/README.md#steam-and-notproton-on-macos).
+
+The native Apple Silicon CLI build and game launch have also been tested locally with CrossOver; standalone native launches still need a Wine wrapper. Upstream provides Windows and Linux support, and the existing release workflow builds those platforms.
 
 ## Repository layout
 

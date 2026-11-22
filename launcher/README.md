@@ -4,7 +4,27 @@ A dedicated Rust command-line launcher for Gakuen Idolmaster (Gakumas). Upstream
 
 ## macOS and CrossOver
 
-The CLI has been built natively for Apple Silicon and used to launch the game locally through CrossOver. Integration is still being developed. Configure `wine` to point to a wrapper that selects CrossOver's underlying Wine loader and matching wineserver, and `wine_prefix` to the game prefix. CrossOver's `bin/wine` management script expects a named bottle; setting `WINEPREFIX` alone does not select a Steam-managed prefix through that script. Use the same runtime for all processes sharing a prefix to avoid Wine client/server version mismatches.
+### Steam and NotProton on macOS
+
+Use the **Windows CLI** (`gakumas-launcher.exe`) as NotProton's **Launch Executable**, and select its working folder with **Start Executable From**. Choose the CrossOver compatibility tool and prefix in NotProton as usual. Keep `gakumas-launcher.exe` and the Windows host `gakumas.exe` in the working folder; the game files live in its `game/` subdirectory by default.
+
+The Windows CLI runs inside Wine and starts the game directly as a Windows child process. It inherits the selected runtime, prefix, and graphics environment, and waits until the game exits. No Wine wrapper or `config.json` is required. `--wine` and `--wine-prefix` are for native Unix builds; the Windows CLI uses the Wine session it is already running in.
+
+The launcher uses `NOTPROTON_GAME_CWD` when supplied, otherwise the current process directory. macOS absolute paths such as `/Volumes/Games/Gakumas` are accessed through Wine's `Z:` drive. This also lets it reuse the native launcher's `$HOME/.config/gakumas` session and identity seed. Under Wine/CrossOver, hardware identity uses that stored seed instead of requiring PowerShell hardware queries.
+
+Explicit command-line options override `config.json`. With neither specified, the game directory is `game/` relative to the launcher working directory. For a different layout, pass `--dir` and `--host` in Steam's launch options, for example:
+
+```text
+--dir "/Volumes/Games/Gakumas/game" --host "/Volumes/Games/Gakumas/gakumas.exe"
+```
+
+Profiles are required for decryption, but the upstream profile URL is already the default; an explicit `--profile-base-url` is unnecessary. `--host-url` is only needed to override host downloads. BepInEx is optional and is not required to launch the base game.
+
+First-time login asks for a callback URL or authorization code. Complete it once from an interactive terminal before launching through Steam; Steam does not provide terminal input. Saved login credentials can then be reused, including those from the native CLI when the same host home directory is inherited.
+
+### Standalone native CLI
+
+The CLI has also been built natively for Apple Silicon and used to launch the game locally through CrossOver. Configure `wine` to point to a wrapper that selects CrossOver's underlying Wine loader and matching wineserver, and `wine_prefix` to the game prefix. CrossOver's `bin/wine` management script expects a named bottle; setting `WINEPREFIX` alone does not select a Steam-managed prefix through that script. Use the same runtime for all processes sharing a prefix to avoid Wine client/server version mismatches.
 
 The launcher downloads game files, decryption profiles, and the Windows host as needed. It does not install CrossOver or set up the prefix's runtime dependencies. The existing release workflow builds Windows and Linux binaries.
 
