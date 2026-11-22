@@ -205,15 +205,7 @@ async fn login(
             eprintln!(
                 "Open this DMM login URL in your browser:\n{url}\nPaste callback URL or authorization code:"
             );
-            let mut browser = if cfg!(windows) {
-                let mut cmd = std::process::Command::new("rundll32.exe");
-                cmd.arg("url.dll,FileProtocolHandler");
-                cmd
-            } else {
-                std::process::Command::new("xdg-open")
-            };
-            let _ = browser
-                .arg(&url)
+            let _ = browser_command(&url)
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
                 .spawn();
@@ -231,6 +223,20 @@ async fn login(
     })?;
     println!("Login succeeded.");
     Ok(())
+}
+
+fn browser_command(url: &str) -> std::process::Command {
+    let mut command = if cfg!(windows) {
+        let mut command = std::process::Command::new("rundll32.exe");
+        command.arg("url.dll,FileProtocolHandler");
+        command
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("/usr/bin/open")
+    } else {
+        std::process::Command::new("xdg-open")
+    };
+    command.arg(url);
+    command
 }
 
 fn extract_code(input: &str) -> Result<String, DynError> {
@@ -335,6 +341,23 @@ fn timestamp() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn login_opens_the_system_browser_with_the_complete_url() {
+        let url = "https://accounts.dmm.com/login?client_id=gakumas&redirect_uri=https%3A%2F%2Fexample.com";
+        let command = browser_command(url);
+        #[cfg(target_os = "macos")]
+        assert_eq!(command.get_program(), "/usr/bin/open");
+        #[cfg(windows)]
+        assert_eq!(command.get_program(), "rundll32.exe");
+        #[cfg(not(any(windows, target_os = "macos")))]
+        assert_eq!(command.get_program(), "xdg-open");
+        let args: Vec<_> = command.get_args().collect();
+        #[cfg(windows)]
+        assert_eq!(args, ["url.dll,FileProtocolHandler", url]);
+        #[cfg(not(windows))]
+        assert_eq!(args, [url]);
+    }
 
     #[test]
     fn explicit_paths_override_config_without_losing_runtime_options() {
