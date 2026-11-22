@@ -6,7 +6,7 @@ A dedicated Rust command-line launcher for Gakuen Idolmaster (Gakumas). Supports
 
 ### Steam and NotProton on macOS
 
-Use the **Windows CLI** (`gakumas-launcher.exe`) as NotProton's **Launch Executable**, and select its working folder with **Start Executable From**. Choose the CrossOver compatibility tool and prefix in NotProton as usual. Keep `gakumas-launcher.exe` and the Windows host `gakumas.exe` in the working folder; the game files live in its `game/` subdirectory by default.
+Use the **Windows CLI** (`gakumas-launcher.exe`) as [NotProton](https://github.com/NotProtonNot/NotProton)'s **Launch Executable**, and select its working folder with **Start Executable From**. Choose the CrossOver compatibility tool and prefix in NotProton as usual. Keep `gakumas-launcher.exe` and the Windows host `gakumas.exe` in the working folder; the game files live in its `game/` subdirectory by default.
 
 The Windows CLI runs inside Wine and starts the game directly as a Windows child process. It inherits the selected runtime, prefix, and graphics environment, and waits until the game exits. No Wine wrapper or `config.json` is required. `--wine` and `--wine-prefix` are for native Unix builds; the Windows CLI uses the Wine session it is already running in.
 
